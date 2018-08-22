@@ -39,7 +39,7 @@ julia> softscope_include_string(Main, \"\"\"
 (This function works like `include_string`, returning the value of the last evaluated expression.)
 """
 module SoftGlobalScope
-export softscope, softscope_include_string
+export softscope, softscope_include_string, @softscope
 
 using Base.Meta: isexpr
 
@@ -68,6 +68,8 @@ function _softscope(ex::Expr, globals, insertglobal::Bool=false)
                              _softscope(ex.args[2], letglobals, true))
     elseif isexpr(ex, :block) || isexpr(ex, :if)
         return Expr(ex.head, _softscope.(ex.args, Ref(globals), insertglobal)...)
+    elseif isexpr(ex, :escape)
+        return Expr(ex.head, _softscope(ex.args[1], globals, true))
     elseif insertglobal && ex.head in assignments && ex.args[1] in globals
         return Expr(:global, Expr(ex.head, ex.args[1], _softscope(ex.args[2], globals, insertglobal)))
     else
@@ -83,6 +85,25 @@ Transform the abstract syntax tree `ast` (a quoted Julia expression) to use "sof
 scoping rules for the global variables defined in `m`, returning the new expression.
 """
 softscope(m::Module, ast) = _softscope(ast, Set(names(m, all=true)))
+
+"""
+    @softscope(expr)
+
+Apply "soft" scoping rules to the argument of the macro. For example
+```jl
+julia> s = 0;
+
+julia> @softscope for i = 1:10
+           s += i
+       end
+
+julia> s
+55
+```
+"""
+macro softscope(ast)
+    softscope(__module__, esc(ast))
+end
 
 """
     softscope_include_string(m::Module, code::AbstractString, filename::AbstractString="string")
