@@ -67,7 +67,7 @@ However, for *interactive* use, especially for new users, the necessity of the `
 
 The `SoftGlobalScope` module exports two functions `softscope` and `softscope_include_string`:
 
-You can transform the expression using `softscope(module, expression)` to automatically insert the necessary `global` keyword:
+You can transform the expression using `softscope(module, expression)` to automatically insert the necessary `global` keyword.  For example, assuming that the module `Main` has a global variable `s` (as above), you can do:
 ```jl
 julia> softscope(Main, :(for i = 1:10
            s += i
