@@ -27,13 +27,13 @@ julia> softscope(Main, :(for i = 1:10
 You can then execute the statement with `eval`.  Alternatively, you can execute an entire sequence of statements
 using "soft" global scoping rules via `softscope_include_string`:
 ```jl
-julia> softscope_include_string(Main, """
+julia> softscope_include_string(Main, \"\"\"
        s = 0
        for i = 1:10
            s += i
        end
        s
-       """)
+       \"\"\")
 55
 ```
 (This function works like `include_string`, returning the value of the last evaluated expression.)
@@ -59,7 +59,7 @@ function _softscope(ex::Expr, globals, insertglobal::Bool=false)
         return Expr(ex.head, ex.args[1], _softscope(ex.args[2], globals, true))
     elseif isexpr(ex, :try)
         try_clause = _softscope(ex.args[1], globals, true)
-        catch_clause = _softscope(ex.args[1], ex.args[2] isa Symbol ? setdiff(globals, ex.args[2:2]) : globals, true)
+        catch_clause = _softscope(ex.args[3], ex.args[2] isa Symbol ? setdiff(globals, ex.args[2:2]) : globals, true)
         finally_clause = _softscope(ex.args[4], globals, true)
         return Expr(:try, try_clause, ex.args[2], catch_clause, finally_clause)
     elseif isexpr(ex, :let)
@@ -82,7 +82,7 @@ _softscope(ex, globals, insertglobal::Bool=false) = ex
 Transform the abstract syntax tree `ast` (a quoted Julia expression) to use "soft"
 scoping rules for the global variables defined in `m`, returning the new expression.
 """
-softscope(m::Module, ast) = _softscope(ast, Set(names(m)))
+softscope(m::Module, ast) = _softscope(ast, Set(names(m, all=true)))
 
 """
     softscope_include_string(m::Module, code::AbstractString, filename::AbstractString="string")
