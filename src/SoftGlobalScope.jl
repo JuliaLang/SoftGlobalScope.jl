@@ -91,7 +91,7 @@ _softscope(ex, globals, insertglobal::Bool=false) = ex
 Transform the abstract syntax tree `ast` (a quoted Julia expression) to use "soft"
 scoping rules for the global variables defined in `m`, returning the new expression.
 """
-softscope(m::Module, ast) = _softscope(ast, Set(names(m, all=true)))
+softscope(m::Module, ast) = _softscope(ast, Set(@static VERSION < v"0.7.0-DEV.3526" ? names(m, true) : names(m, all=true)))
 
 """
     softscope_include_string(m::Module, code::AbstractString, filename::AbstractString="string")
