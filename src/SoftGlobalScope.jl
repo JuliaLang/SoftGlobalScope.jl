@@ -46,7 +46,8 @@ using Base.Meta: isexpr
 const assignments = Set((:(=), :(+=), :(-=), :(*=), :(/=), :(//=), :(\=), :(^=), :(÷=), :(%=), :(<<=), :(>>=), :(>>>=), :(|=), :(&=), :(⊻=), :($=)))
 
 # extract the local variable name (e.g. `x`) from an assignment expression (e.g. `x=1`)
-localvar(ex::Expr) = isexpr(ex, :(=)) ? ex.args[1] : nothing
+localvar(ex::Expr) = isexpr(ex, :(=)) || isexpr(ex, :(::)) ? localvar(ex.args[1]) : nothing
+localvar(ex::Symbol) = ex
 localvar(ex) = nothing
 
 # Transform expression `ex` to "soft" scoping rules, where `globals` is a collection
@@ -63,7 +64,7 @@ function _softscope(ex::Expr, globals, insertglobal::Bool=false)
         finally_clause = _softscope(ex.args[4], globals, true)
         return Expr(:try, try_clause, ex.args[2], catch_clause, finally_clause)
     elseif isexpr(ex, :let)
-        letglobals = setdiff(globals, isexpr(ex.args[1], :(=)) ? [ex.args[1].args[1]] : [localvar(ex) for ex in ex.args[1].args])
+        letglobals = setdiff(globals, isexpr(ex.args[1], :(=)) ? [localvar(ex.args[1])] : [localvar(ex) for ex in ex.args[1].args])
         return Expr(ex.head, _softscope(ex.args[1], globals, insertglobal),
                              _softscope(ex.args[2], letglobals, true))
     elseif isexpr(ex, :block) || isexpr(ex, :if)
