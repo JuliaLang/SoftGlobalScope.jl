@@ -47,7 +47,7 @@ export softscope, softscope_include_string
 if VERSION < v"0.7.0-DEV.2308" # before julia#19324 we don't need to change the ast
     softscope(m::Module, ast) = ast
     softscope_include_string(m::Module, code::AbstractString, filename::AbstractString="string") =
-        @static isdefined(Base, Symbol("@__MODULE__")) ? include_string(m, code, filename) :  eval(mod, :(include_string($code, $filename)))
+        @static isdefined(Base, Symbol("@__MODULE__")) ? include_string(m, code, filename) :  Core.eval(mod, :(include_string($code, $filename)))
 else
     using Base.Meta: isexpr
 
