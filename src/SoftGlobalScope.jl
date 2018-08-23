@@ -50,18 +50,23 @@ localvar(ex::Expr) = isexpr(ex, :(=)) || isexpr(ex, :(::)) ? localvar(ex.args[1]
 localvar(ex::Symbol) = ex
 localvar(ex) = nothing
 
-# Transform expression `ex` to "soft" scoping rules, where `globals` is a collection
-# (e.g. `Set`) of global-variable symbols to implicitly qualify with `global`, and
-# `insertglobal` is whether to insert the `global` keyword at the top level of
-# `ex`.  (Usually, you pass `insertglobal=false` to start with and then it is
-# recursively set to `true` for local scopes introduced by `for` etcetera.)
+"""
+    _softscope(ex, globals, insertglobal::Bool=false)
+
+Transform expression `ex` to "soft" scoping rules, where `globals` is a collection
+(e.g. `Set`) of global-variable symbols to implicitly qualify with `global`, and
+`insertglobal` is whether to insert the `global` keyword at the top level of
+`ex`.  (Usually, you pass `insertglobal=false` to start with and then it is
+recursively set to `true` for local scopes introduced by `for` etcetera.)
+NOTE: `_softscope`` may mutate the `globals` argument (if there are `local` declarations.)
+"""
 function _softscope(ex::Expr, globals, insertglobal::Bool=false)
     if isexpr(ex, :for) || isexpr(ex, :while)
-        return Expr(ex.head, ex.args[1], _softscope(ex.args[2], globals, true))
+        return Expr(ex.head, ex.args[1], _softscope(ex.args[2], copy(globals), true))
     elseif isexpr(ex, :try)
-        try_clause = _softscope(ex.args[1], globals, true)
-        catch_clause = _softscope(ex.args[3], ex.args[2] isa Symbol ? setdiff(globals, ex.args[2:2]) : globals, true)
-        finally_clause = _softscope(ex.args[4], globals, true)
+        try_clause = _softscope(ex.args[1], copy(globals), true)
+        catch_clause = _softscope(ex.args[3], ex.args[2] isa Symbol ? setdiff(globals, ex.args[2:2]) : copy(globals), true)
+        finally_clause = _softscope(ex.args[4], copy(globals), true)
         return Expr(:try, try_clause, ex.args[2], catch_clause, finally_clause)
     elseif isexpr(ex, :let)
         letglobals = setdiff(globals, isexpr(ex.args[1], :(=)) ? [localvar(ex.args[1])] : [localvar(ex) for ex in ex.args[1].args])
@@ -69,6 +74,9 @@ function _softscope(ex::Expr, globals, insertglobal::Bool=false)
                              _softscope(ex.args[2], letglobals, true))
     elseif isexpr(ex, :block) || isexpr(ex, :if)
         return Expr(ex.head, _softscope.(ex.args, Ref(globals), insertglobal)...)
+    elseif isexpr(ex, :local)
+        setdiff!(globals, (localvar(ex.args[1]),)) # affects globals in surrounding scope!
+        return ex
     elseif insertglobal && ex.head in assignments && ex.args[1] in globals
         return Expr(:global, Expr(ex.head, ex.args[1], _softscope(ex.args[2], globals, insertglobal)))
     else
