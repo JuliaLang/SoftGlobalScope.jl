@@ -103,6 +103,9 @@ julia> softscope_include_string(Main, """
 ```
 (This function works like `include_string`, returning the value of the last evaluated expression.)
 
+In Julia 0.6, no code transformations are required, so `softscope` returns the original expression
+and `softscope_include_string` is equivalent to `include_string`.
+
 ## Contact
 
 SoftGlobalScope was written by [Steven G. Johnson](http://math.mit.edu/~stevenj/) and is free/open-source software under the [MIT/Expat license](LICENSE.md).  Please file bug reports and feature requests at the [SoftGlobalScope github page](https://github.com/stevengj/SoftGlobalScope.jl).
