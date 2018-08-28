@@ -133,6 +133,16 @@ scoping rules for the global variables defined in `m`, returning the new express
 """
 softscope
 
+if VERSION < v"0.7.0-DEV.481" # the version that __module__ was introduced
+    macro softscope(ast)
+        esc(softscope(current_module(), ast))
+    end
+else
+    macro softscope(ast)
+        esc(softscope(__module__, ast))
+    end
+end
+
 """
     @softscope(expr)
 
@@ -148,9 +158,7 @@ julia> s
 55
 ```
 """
-macro softscope(ast)
-    esc(softscope(__module__, ast))
-end
+:(@softscope)
 
 """
     softscope_include_string(m::Module, code::AbstractString, filename::AbstractString="string")

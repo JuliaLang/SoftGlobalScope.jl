@@ -43,3 +43,9 @@ end
     @test softscope_include_string(TestMod, "for i=1:10; a += 1; end; a") == 10
     @test softscope_include_string(TestMod, "aa=0; for i=1:10; aa += i; end; aa") == 55
 end
+
+@testset "softscope_macro" begin
+    Core.eval(TestMod, :(global a = 0 ; using SoftGlobalScope))
+    @test Core.eval(TestMod, :(@softscope (for i=1:10; a += 1; end; a))) == 10
+    @test Core.eval(TestMod, :(@softscope (aa=0; for i=1:10; aa += i; end; aa))) == 55
+end
