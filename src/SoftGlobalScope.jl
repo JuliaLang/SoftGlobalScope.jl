@@ -26,8 +26,23 @@ julia> softscope(Main, :(for i = 1:10
       global s += i
   end)
 ```
-You can then execute the statement with `eval`.  Alternatively, you can execute an entire sequence of statements
-using "soft" global scoping rules via `softscope_include_string`:
+You can then execute the statement with `eval`. Alternatively, you can decorate
+the expression with the `@softscope` macro:
+```jl
+julia> s = 0;
+
+julia> @softscope for i = 1:10
+           s += i
+       end
+
+julia> s
+55
+```
+This macro should only be used in the global scope (e.g., via the REPL); using
+this macro within a function is likely to lead to unintended consequences.
+
+You can execute an entire sequence of statements using "soft" global scoping
+rules via `softscope_include_string`:
 ```jl
 julia> softscope_include_string(Main, \"\"\"
        s = 0
@@ -134,7 +149,7 @@ julia> s
 ```
 """
 macro softscope(ast)
-    softscope(__module__, esc(ast))
+    esc(softscope(__module__, ast))
 end
 
 """
