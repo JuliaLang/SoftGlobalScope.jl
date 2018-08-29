@@ -47,5 +47,5 @@ end
 @testset "softscope_macro" begin
     Core.eval(TestMod, :(global a = 0 ; using SoftGlobalScope))
     @test Core.eval(TestMod, :(@softscope (for i=1:10; a += 1; end; a))) == 10
-    @test Core.eval(TestMod, :(@softscope (aa=0; for i=1:10; aa += i; end; aa))) == 55
+    @test Core.eval(TestMod, :(@softscope (amacro=0; for i=1:10; amacro += i; end; amacro))) == 55
 end
