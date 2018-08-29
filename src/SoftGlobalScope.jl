@@ -55,10 +55,19 @@ else
 
     const assignments = Set((:(=), :(+=), :(-=), :(*=), :(/=), :(//=), :(\=), :(^=), :(÷=), :(%=), :(<<=), :(>>=), :(>>>=), :(|=), :(&=), :(⊻=), :($=)))
 
-    # extract the local variable name (e.g. `x`) from an assignment expression (e.g. `x=1`)
-    localvar(ex::Expr) = isexpr(ex, :(=)) || isexpr(ex, :(::)) ? localvar(ex.args[1]) : nothing
-    localvar(ex::Symbol) = ex
-    localvar(ex) = nothing
+    # extract the local variable names (e.g. `[:x]`) from assignments (e.g. `x=1`) etc.
+    function localvars(ex::Expr)
+        if isexpr(ex, :(=)) || isexpr(ex, :(::))
+            return localvars(ex.args[1])
+        elseif isexpr(ex, :tuple) || isexpr(ex, :block)
+            return localvars(ex.args)
+        else
+            return Any[]
+        end
+    end
+    localvars(ex::Symbol) = [ex]
+    localvars(ex) = Any[]
+    localvars(a::Vector) = vcat(localvars.(a)...)
 
     """
         _softscope(ex, globals, insertglobal::Bool=false)
@@ -79,13 +88,13 @@ else
             finally_clause = _softscope(ex.args[4], copy(globals), true)
             return Expr(:try, try_clause, ex.args[2], catch_clause, finally_clause)
         elseif isexpr(ex, :let)
-            letglobals = setdiff(globals, isexpr(ex.args[1], :(=)) ? [localvar(ex.args[1])] : [localvar(ex) for ex in ex.args[1].args])
+            letglobals = setdiff(globals, localvars(ex.args[1]))
             return Expr(ex.head, _softscope(ex.args[1], globals, insertglobal),
                                 _softscope(ex.args[2], letglobals, true))
         elseif isexpr(ex, :block) || isexpr(ex, :if)
             return Expr(ex.head, _softscope.(ex.args, Ref(globals), insertglobal)...)
         elseif isexpr(ex, :local)
-            setdiff!(globals, (localvar(ex.args[1]),)) # affects globals in surrounding scope!
+            setdiff!(globals, localvars(ex.args)) # affects globals in surrounding scope!
             return ex
         elseif insertglobal && ex.head in assignments && ex.args[1] in globals
             return Expr(:global, Expr(ex.head, ex.args[1], _softscope(ex.args[2], globals, insertglobal)))
