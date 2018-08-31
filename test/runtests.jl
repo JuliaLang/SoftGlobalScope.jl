@@ -39,6 +39,10 @@ end
         @test softscope(TestMod, nl"let b::Int=2; a+=1; b=3; end") == nl"let b::Int=2; global a+=1; b=3; end"
         @test softscope(TestMod, nl"try; a=1; catch; b=2; finally; end") == nl"try; global a=1; catch; global b=2; finally; end"
         @test softscope(TestMod, nl"try; a=1; catch b; b=2; finally; end") == nl"try; global a=1; catch b; b=2; finally; end"
+        @test softscope(TestMod, nl"begin; aa=0; for i=1:10; aa+=i; end; end") == nl"begin; aa=0; for i=1:10; global aa+=i; end; end"
+        @test softscope(TestMod, nl"begin; (aa, bb)=(0, 1); for i=1:10; aa+=i; bb+=1; end; end") == nl"begin; (aa, bb)=(0, 1); for i=1:10; global aa+=i; global bb+=1; end; end"
+        @test softscope(TestMod, nl"begin; if true; aa=0; end; for i=1:10; aa+=i; end") == nl"begin; if true; aa=0; end; for i=1:10; global aa+=i; end"
+        @test softscope(TestMod, nl"begin; for i=1:10; a+=1; end; if a==0; aa=2; else aa=3; end; while aa > 0; aa -= 1; end; end") == nl"begin; for i=1:10; global a+=1; end; if a==0; aa=2; else aa=3; end; while aa > 0; global aa -= 1; end; end"
     end
 end
 

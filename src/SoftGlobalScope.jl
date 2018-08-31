@@ -89,8 +89,7 @@ else
             return Expr(:try, try_clause, ex.args[2], catch_clause, finally_clause)
         elseif isexpr(ex, :let)
             letglobals = setdiff(globals, localvars(ex.args[1]))
-            return Expr(ex.head, _softscope(ex.args[1], globals, insertglobal),
-                                _softscope(ex.args[2], letglobals, true))
+            return Expr(ex.head, ex.args[1], _softscope(ex.args[2], letglobals, true))
         elseif isexpr(ex, :block) || isexpr(ex, :if)
             return Expr(ex.head, _softscope.(ex.args, Ref(globals), insertglobal)...)
         elseif isexpr(ex, :local)
@@ -98,6 +97,9 @@ else
             return ex
         elseif insertglobal && ex.head in assignments && ex.args[1] in globals
             return Expr(:global, Expr(ex.head, ex.args[1], _softscope(ex.args[2], globals, insertglobal)))
+        elseif !insertglobal && isexpr(ex, :(=))
+            union!(globals, localvars(ex))
+            return ex
         else
             return ex
         end
@@ -110,12 +112,8 @@ else
         # use the undocumented parse_input_line function so that we preserve
         # the filename and line-number information.
         expr = Base.parse_input_line("begin; "*code*"\nend\n", filename=filename)
-        retval = nothing
         # expr.args should consist of LineNumberNodes followed by expressions to evaluate
-        for i = 2:2:length(expr.args)
-            retval = Core.eval(m, softscope(m, Expr(:block, expr.args[i-1:i]...)))
-        end
-        return retval
+        return Core.eval(m, softscope(m, expr))
     end
 end
 
