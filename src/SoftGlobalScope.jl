@@ -90,7 +90,7 @@ else
         elseif isexpr(ex, :let)
             letlocals = union(locals, localvars(ex.args[1]))
             return Expr(ex.head, ex.args[1], _softscope(ex.args[2], copy(globals), letlocals, true))
-        elseif isexpr(ex, :block) || isexpr(ex, :if)
+        elseif isexpr(ex, :block) || isexpr(ex, :if) || isexpr(ex, :toplevel)
             return Expr(ex.head, _softscope.(ex.args, Ref(globals), Ref(locals), insertglobal)...)
         elseif isexpr(ex, :global)
             union!(globals, localvars(ex.args))
@@ -111,12 +111,43 @@ else
 
     softscope(m::Module, ast) = _softscope(ast, Set(@static VERSION < v"0.7.0-DEV.3526" ? names(m, true) : names(m, all=true)), Set{Symbol}())
 
+    # we want to add line numbers to most expressions, but we can
+    # only do this by wrapping them in :block (:toplevel doesn't work),
+    # and some expressions are toplevel-only.  We also need to shift
+    # any existing line numbers by line-1.
+    const toplevel_only = (:module, :primitive, :abstract, :struct)
+    _add_linenum(ex, line, filesym) = Expr(:block, LineNumberNode(line, filesym), ex)
+    add_linenum(ex, line, filesym) = _add_linenum(ex, line, filesym)
+    add_linenum(ex::LineNumberNode, line, filesym) = ex.file === filesym ? LineNumberNode(ex.line+line-1, filesym) : ex
+    function add_linenum(ex::Expr, line, filesym)
+        ex.head in toplevel_only && return ex
+        return _add_linenum(Expr(ex.head, add_linenum.(ex.args, line, filesym)...), line, filesym)
+    end
+
     function softscope_include_string(m::Module, code::AbstractString, filename::AbstractString="string")
-        # use the undocumented parse_input_line function so that we preserve
-        # the filename and line-number information.
-        expr = Base.parse_input_line("begin; "*code*"\nend\n", filename=filename)
-        # expr.args should consist of LineNumberNodes followed by expressions to evaluate
-        return Core.eval(m, softscope(m, expr))
+        # read through the code line by line, keeping count to preserve line-number information,
+        # using the undocumented Base.parse_input_line function.
+        io = IOBuffer(code)
+        line = 0
+        retval = nothing
+        filesym = Symbol(filename) # LineNumberNode needs a Symbol
+        while !eof(io)
+            s = ""
+            e = nothing
+            while !eof(io)
+                line += 1
+                s *= readline(io, keep=true)
+                e = Base.parse_input_line(s, filename=filename)
+                isexpr(e, :incomplete) || break
+            end
+            if isexpr(e, :incomplete) || isexpr(e, :error)
+                throw(LoadError(filename, line,
+                                ErrorException("syntax: " * e.args[1])))
+            end
+            e = add_linenum(e, line, filesym)
+            retval = Core.eval(m, softscope(m, e))
+        end
+        return retval
     end
 end
 
