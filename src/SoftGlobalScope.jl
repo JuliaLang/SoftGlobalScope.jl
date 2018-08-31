@@ -81,17 +81,20 @@ else
     """
     function _softscope(ex::Expr, globals, locals, insertglobal::Bool=false)
         if isexpr(ex, :for) || isexpr(ex, :while)
-            return Expr(ex.head, ex.args[1], _softscope(ex.args[2], globals, copy(locals), true))
+            return Expr(ex.head, ex.args[1], _softscope(ex.args[2], copy(globals), copy(locals), true))
         elseif isexpr(ex, :try)
-            try_clause = _softscope(ex.args[1], globals, copy(locals), true)
-            catch_clause = _softscope(ex.args[3], globals, ex.args[2] isa Symbol ? union!(locals, ex.args[2:2]) : copy(locals), true)
-            finally_clause = _softscope(ex.args[4], globals, copy(locals), true)
+            try_clause = _softscope(ex.args[1], copy(globals), copy(locals), true)
+            catch_clause = _softscope(ex.args[3], copy(globals), ex.args[2] isa Symbol ? union!(locals, ex.args[2:2]) : copy(locals), true)
+            finally_clause = _softscope(ex.args[4], copy(globals), copy(locals), true)
             return Expr(:try, try_clause, ex.args[2], catch_clause, finally_clause)
         elseif isexpr(ex, :let)
             letlocals = union(locals, localvars(ex.args[1]))
-            return Expr(ex.head, ex.args[1], _softscope(ex.args[2], globals, letlocals, true))
+            return Expr(ex.head, ex.args[1], _softscope(ex.args[2], copy(globals), letlocals, true))
         elseif isexpr(ex, :block) || isexpr(ex, :if)
             return Expr(ex.head, _softscope.(ex.args, Ref(globals), Ref(locals), insertglobal)...)
+        elseif isexpr(ex, :global)
+            union!(globals, localvars(ex.args))
+            return ex
         elseif isexpr(ex, :local)
             union!(locals, localvars(ex.args)) # affects globals in surrounding scope!
             return ex

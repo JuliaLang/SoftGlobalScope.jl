@@ -47,6 +47,7 @@ end
         @test softscope(TestMod, nl"begin; local x; x = 0; for i = 1:10; x += i ; end ; end") == nl"begin; local x; x = 0; for i = 1:10; x += i ; end ; end"
         @test softscope(TestMod, nl"let x=1; x=0; for i = 1:10; x += i; end; end") == nl"let x=1; x=0; for i = 1:10; x += i; end; end"
         @test softscope(TestMod, nl"for i = 1:10; for j = 1:3; global x += 1; end; x = 3; end") == nl"for i = 1:10; for j = 1:3; global x += 1; end; x = 3; end"
+        @test softscope(TestMod, nl"let; global a = 0; for i = 1:10; a+=i; end; end") == nl"let; global a = 0; for i = 1:10; global a+=i; end; end"
     end
 end
 
