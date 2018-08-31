@@ -70,7 +70,7 @@ else
     localvars(a::Vector) = vcat(localvars.(a)...)
 
     """
-        _softscope(ex, globals, insertglobal::Bool=false)
+        _softscope(ex, globals, locals, insertglobal::Bool=false)
 
     Transform expression `ex` to "soft" scoping rules, where `globals` is a collection
     (e.g. `Set`) of global-variable symbols to implicitly qualify with `global`, and
@@ -79,34 +79,34 @@ else
     recursively set to `true` for local scopes introduced by `for` etcetera.)
     NOTE: `_softscope`` may mutate the `globals` argument (if there are `local` declarations.)
     """
-    function _softscope(ex::Expr, globals, insertglobal::Bool=false)
+    function _softscope(ex::Expr, globals, locals, insertglobal::Bool=false)
         if isexpr(ex, :for) || isexpr(ex, :while)
-            return Expr(ex.head, ex.args[1], _softscope(ex.args[2], copy(globals), true))
+            return Expr(ex.head, ex.args[1], _softscope(ex.args[2], globals, copy(locals), true))
         elseif isexpr(ex, :try)
-            try_clause = _softscope(ex.args[1], copy(globals), true)
-            catch_clause = _softscope(ex.args[3], ex.args[2] isa Symbol ? setdiff(globals, ex.args[2:2]) : copy(globals), true)
-            finally_clause = _softscope(ex.args[4], copy(globals), true)
+            try_clause = _softscope(ex.args[1], globals, copy(locals), true)
+            catch_clause = _softscope(ex.args[3], globals, ex.args[2] isa Symbol ? union!(locals, ex.args[2:2]) : copy(locals), true)
+            finally_clause = _softscope(ex.args[4], globals, copy(locals), true)
             return Expr(:try, try_clause, ex.args[2], catch_clause, finally_clause)
         elseif isexpr(ex, :let)
-            letglobals = setdiff(globals, localvars(ex.args[1]))
-            return Expr(ex.head, ex.args[1], _softscope(ex.args[2], letglobals, true))
+            letlocals = union(locals, localvars(ex.args[1]))
+            return Expr(ex.head, ex.args[1], _softscope(ex.args[2], globals, letlocals, true))
         elseif isexpr(ex, :block) || isexpr(ex, :if)
-            return Expr(ex.head, _softscope.(ex.args, Ref(globals), insertglobal)...)
+            return Expr(ex.head, _softscope.(ex.args, Ref(globals), Ref(locals), insertglobal)...)
         elseif isexpr(ex, :local)
-            setdiff!(globals, localvars(ex.args)) # affects globals in surrounding scope!
+            union!(locals, localvars(ex.args)) # affects globals in surrounding scope!
             return ex
-        elseif insertglobal && ex.head in assignments && ex.args[1] in globals
-            return Expr(:global, Expr(ex.head, ex.args[1], _softscope(ex.args[2], globals, insertglobal)))
-        elseif !insertglobal && isexpr(ex, :(=))
+        elseif insertglobal && ex.head in assignments && ex.args[1] in globals && !(ex.args[1] in locals)
+            return Expr(:global, Expr(ex.head, ex.args[1], _softscope(ex.args[2], globals, locals, insertglobal)))
+        elseif !insertglobal && isexpr(ex, :(=)) # only assignments in the global scope need to be considered
             union!(globals, localvars(ex))
             return ex
         else
             return ex
         end
     end
-    _softscope(ex, globals, insertglobal::Bool=false) = ex
+    _softscope(ex, globals, locals, insertglobal::Bool=false) = ex
 
-    softscope(m::Module, ast) = _softscope(ast, Set(@static VERSION < v"0.7.0-DEV.3526" ? names(m, true) : names(m, all=true)))
+    softscope(m::Module, ast) = _softscope(ast, Set(@static VERSION < v"0.7.0-DEV.3526" ? names(m, true) : names(m, all=true)), Set{Symbol}())
 
     function softscope_include_string(m::Module, code::AbstractString, filename::AbstractString="string")
         # use the undocumented parse_input_line function so that we preserve
