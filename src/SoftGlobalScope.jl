@@ -118,33 +118,44 @@ else
     const toplevel_only = (:module, :primitive, :abstract, :struct)
     _add_linenum(ex, line, filesym) = Expr(:block, LineNumberNode(line, filesym), ex)
     add_linenum(ex, line, filesym) = _add_linenum(ex, line, filesym)
-    add_linenum(ex::LineNumberNode, line, filesym) = ex.file === filesym ? LineNumberNode(ex.line+line-1, filesym) : ex
+    shift_linenum(ex::LineNumberNode, line, filesym) = ex.file === filesym ? LineNumberNode(ex.line+line-1, filesym) : ex
+    shift_linenum(ex::Expr, line, filesym) = Expr(ex.head, shift_linenum.(ex.args, line, filesym)...)
+    shift_linenum(ex, line, filesym) = ex
+    add_linenum(ex::LineNumberNode, line, filesym) = shift_linenum(ex, line, filesym)
     function add_linenum(ex::Expr, line, filesym)
-        ex.head in toplevel_only && return ex
-        return _add_linenum(Expr(ex.head, add_linenum.(ex.args, line, filesym)...), line, filesym)
+        if ex.head == :toplevel
+            return Expr(:toplevel, add_linenum.(ex.args, line, filesym)...)
+        end
+        exshift = shift_linenum(ex, line, filesym)
+        if exshift.head in toplevel_only
+            return exshift
+        else
+            return _add_linenum(exshift, line, filesym)
+        end
     end
 
     function softscope_include_string(m::Module, code::AbstractString, filename::AbstractString="string")
         # read through the code line by line, keeping count to preserve line-number information,
         # using the undocumented Base.parse_input_line function.
         io = IOBuffer(code)
-        line = 0
+        line = 1
         retval = nothing
         filesym = Symbol(filename) # LineNumberNode needs a Symbol
         while !eof(io)
             s = ""
             e = nothing
+            linestart = line
             while !eof(io)
-                line += 1
                 s *= readline(io, keep=true)
+                line += 1
                 e = Base.parse_input_line(s, filename=filename)
                 isexpr(e, :incomplete) || break
             end
             if isexpr(e, :incomplete) || isexpr(e, :error)
-                throw(LoadError(filename, line,
+                throw(LoadError(filename, linestart,
                                 ErrorException("syntax: " * e.args[1])))
             end
-            e = add_linenum(e, line, filesym)
+            e = add_linenum(e, linestart, filesym)
             retval = Core.eval(m, softscope(m, e))
         end
         return retval

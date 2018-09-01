@@ -54,4 +54,19 @@ end
 @testset "softscope_include_string" begin
     @test softscope_include_string(TestMod, "for i=1:10; a += 1; end; a") == 10
     @test softscope_include_string(TestMod, "aa=0; for i=1:10; aa += i; end; aa") == 55
+    @test softscope_include_string(TestMod, "aa2=0\nfor i=1:10; aa2 += i; end\naa2") == 55
+    @test softscope_include_string(TestMod, "module AModule; const amod=123; end") isa Module
+    @test TestMod.AModule.amod == 123
+    for (code,line) in (("1\n2\n1+",3), ("1;2;1+",1))
+        try
+            softscope_include_string(TestMod, code, "bar")
+        catch e
+            @test e == LoadError("bar", line, ErrorException("syntax: incomplete: premature end of input"))
+        end
+    end
+    try
+        softscope_include_string(TestMod, "1\n2\n1++++2", "bar")
+    catch e
+        @test e == LoadError("bar", 3, ErrorException("syntax: \"++\" is not a unary operator"))
+    end
 end
