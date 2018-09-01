@@ -51,6 +51,12 @@ end
     end
 end
 
+# make == comparison of LoadErrors work in 0.6
+if VERSION < v"0.7"
+    Base.:(==)(a::LoadError, b::LoadError) = a.file == b.file && a.line == b.line && a.error == b.error
+    Base.:(==)(a::ErrorException, b::ErrorException) = a.msg == b.msg
+end
+
 @testset "softscope_include_string" begin
     @test softscope_include_string(TestMod, "for i=1:10; a += 1; end; a") == 10
     @test softscope_include_string(TestMod, "aa=0; for i=1:10; aa += i; end; aa") == 55
