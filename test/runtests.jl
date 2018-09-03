@@ -76,3 +76,9 @@ end
         @test e == LoadError("bar", 3, ErrorException("syntax: \"++\" is not a unary operator"))
     end
 end
+
+@testset "softscope_macro" begin
+    Core.eval(TestMod, :(global a = 0 ; using SoftGlobalScope))
+    @test Core.eval(TestMod, :(@softscope (for i=1:10; a += 1; end; a))) == 10
+    @test Core.eval(TestMod, :(@softscope (amacro=0; for i=1:10; amacro += i; end; amacro))) == 55
+end

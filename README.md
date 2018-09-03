@@ -65,7 +65,7 @@ However, for *interactive* use, especially for new users, the necessity of the `
 
 ## Usage
 
-The `SoftGlobalScope` module exports two functions `softscope` and `softscope_include_string`:
+The `SoftGlobalScope` module exports two functions `softscope` and `softscope_include_string`, and a macro `@softscope`:
 
 You can transform the expression using `softscope(module, expression)` to automatically insert the necessary `global` keyword.  For example, assuming that the module `Main` has a global variable `s` (as above), you can do:
 ```jl
@@ -77,8 +77,20 @@ julia> softscope(Main, :(for i = 1:10
       global s += i
   end)
 ```
-You can then execute the statement with `eval`.  Alternatively, you can execute an entire sequence of statements
-using "soft" global scoping rules via `softscope_include_string(module, string, filename="string")`:
+You can then execute the statement with `eval`. Alternatively, you can decorate the expression with the `@softscope` macro:
+```jl
+julia> s = 0;
+
+julia> @softscope for i = 1:10
+           s += i
+       end
+
+julia> s
+55
+```
+This macro should only be used in the global scope (e.g., via the REPL); using this macro within a function is likely to lead to unintended consequences.
+
+You can execute an entire sequence of statements using "soft" global scoping rules via `softscope_include_string(module, string, filename="string")`:
 ```jl
 julia> softscope_include_string(Main, """
        s = 0

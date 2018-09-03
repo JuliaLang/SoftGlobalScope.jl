@@ -26,8 +26,23 @@ julia> softscope(Main, :(for i = 1:10
       global s += i
   end)
 ```
-You can then execute the statement with `eval`.  Alternatively, you can execute an entire sequence of statements
-using "soft" global scoping rules via `softscope_include_string`:
+You can then execute the statement with `eval`. Alternatively, you can decorate
+the expression with the `@softscope` macro:
+```jl
+julia> s = 0;
+
+julia> @softscope for i = 1:10
+           s += i
+       end
+
+julia> s
+55
+```
+This macro should only be used in the global scope (e.g., via the REPL); using
+this macro within a function is likely to lead to unintended consequences.
+
+You can execute an entire sequence of statements using "soft" global scoping
+rules via `softscope_include_string`:
 ```jl
 julia> softscope_include_string(Main, \"\"\"
        s = 0
@@ -44,7 +59,7 @@ On Julia 0.6, `softscope` is the identity and `softscope_include_string` is equi
 `include_string`, since the `global` keyword is not needed there.
 """
 module SoftGlobalScope
-export softscope, softscope_include_string
+export softscope, softscope_include_string, @softscope
 
 if VERSION < v"0.7.0-DEV.2308" # before julia#19324 we don't need to change the ast
     softscope(m::Module, ast) = ast
@@ -169,6 +184,33 @@ Transform the abstract syntax tree `ast` (a quoted Julia expression) to use "sof
 scoping rules for the global variables defined in `m`, returning the new expression.
 """
 softscope
+
+if VERSION < v"0.7.0-DEV.481" # the version that __module__ was introduced
+    macro softscope(ast)
+        esc(softscope(current_module(), ast))
+    end
+else
+    macro softscope(ast)
+        esc(softscope(__module__, ast))
+    end
+end
+
+"""
+    @softscope(expr)
+
+Apply "soft" scoping rules to the argument of the macro. For example
+```jl
+julia> s = 0;
+
+julia> @softscope for i = 1:10
+           s += i
+       end
+
+julia> s
+55
+```
+"""
+:(@softscope)
 
 """
     softscope_include_string(m::Module, code::AbstractString, filename::AbstractString="string")
