@@ -100,8 +100,12 @@ else
         elseif isexpr(ex, :try)
             try_clause = _softscope(ex.args[1], copy(globals), copy(locals), true)
             catch_clause = _softscope(ex.args[3], copy(globals), ex.args[2] isa Symbol ? union!(locals, ex.args[2:2]) : copy(locals), true)
-            finally_clause = _softscope(ex.args[4], copy(globals), copy(locals), true)
-            return Expr(:try, try_clause, ex.args[2], catch_clause, finally_clause)
+            if length(ex.args) == 3
+                return Expr(:try, try_clause, ex.args[2], catch_clause)
+            else
+                finally_clause = _softscope(ex.args[4], copy(globals), copy(locals), true)
+                return Expr(:try, try_clause, ex.args[2], catch_clause, finally_clause)
+            end
         elseif isexpr(ex, :let)
             letlocals = union(locals, localvars(ex.args[1]))
             return Expr(ex.head, ex.args[1], _softscope(ex.args[2], copy(globals), letlocals, true))
