@@ -50,6 +50,17 @@ end
         @test softscope(TestMod, nl"let x=1; x=0; for i = 1:10; x += i; end; end") == nl"let x=1; x=0; for i = 1:10; x += i; end; end"
         @test softscope(TestMod, nl"for i = 1:10; for j = 1:3; global x += 1; end; x = 3; end") == nl"for i = 1:10; for j = 1:3; global x += 1; end; x = 3; end"
         @test softscope(TestMod, nl"let; global aa = 0; for i = 1:10; aa+=i; end; end") == nl"let; global aa = 0; for i = 1:10; global aa+=i; end; end"
+        @test softscope(TestMod, nl"for i = (a = 1; 1:10); end") == nl"for i = (a = 1; 1:10); end"
+        @test softscope(TestMod, nl"while (a += 1) < 10 ; end") == nl"while (a += 1) < 10 ; end"
+        @test softscope(TestMod, nl"let a = (a = 2); end") == nl"let a = (global a = 2); end"
+        @test softscope(TestMod, nl"let a = (a = 1), b = (b = 2), c = (aa = 3); end") == nl"let a = (global a = 1), b = (global b = 2), c = (aa = 3); end"
+        @test softscope(TestMod, nl"let a = (b = 1), b = (a = 2), c = (aa = 3); end") == nl"let a = (global b = 1), b = (a = 2), c = (aa = 3); end"
+        @test softscope(TestMod, nl"for i = (a = 1; 1:10); for j = (a = 2; 1:10); end; end") == nl"for i = (a = 1; 1:10); for j = (global a = 2; 1:10); end; end"
+        @test softscope(TestMod, nl"while (a += 1) < 10; while (b += 1) < 10; end; end") == nl"while (a += 1) < 10; while (global b += 1) < 10; end; end"
+        @test softscope(TestMod, nl"let; f(a) = (a = 1); end") == nl"let; f(a) = (a = 1); end"
+        @test softscope(TestMod, nl"sqrt((for i = 1:10; a+=1; end; a))") == nl"sqrt((for i = 1:10; global a+=1; end; a))"
+        @test softscope(TestMod, nl"let a = (local b = 2; a = 1), b = (b = 3); end") == nl"let a = (local b = 2; global a = 1), b = (b = 3); end"
+        @test softscope(TestMod, nl"f(a=(for i = 1:10; a+=1; end; a))") == nl"f(a=(for i = 1:10; global a+=1; end; a))"
     end
 end
 

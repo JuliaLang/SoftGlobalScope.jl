@@ -84,6 +84,27 @@ else
     localvars(ex) = Any[]
     localvars(a::Vector) = vcat(localvars.(a)...)
 
+    # Deal with assignments where the LHS is always local but the RHS might require global statements
+    # For example, with previously defined a, let a = (a = 1) ; end -> let a = (global a = 1) ; end
+    function localassignment(ex::Expr, globals, locals, insertglobal)
+        if isexpr(ex, :block)
+            args = []
+            for arg in ex.args
+                if isexpr(arg, :(=))
+                    push!(args, Expr(arg.head, arg.args[1], _softscope(arg.args[2], globals, locals, insertglobal)))
+                    union!(locals, localvars(arg.args[1]))
+                else
+                    error("Unknown syntax - please file an issue in the SoftGlobalScope.jl repository")
+                end
+            end
+            return Expr(ex.head, args...)
+        elseif isexpr(ex, :(=))
+            return Expr(ex.head, ex.args[1], _softscope(ex.args[2], globals, locals, insertglobal))
+        else
+            error("Unknown syntax - please file an issue in the SoftGlobalScope.jl repository")
+        end
+    end
+
     """
         _softscope(ex, globals, locals, insertglobal::Bool=false)
 
@@ -95,8 +116,12 @@ else
     NOTE: `_softscope`` may mutate the `globals` argument (if there are `local` declarations.)
     """
     function _softscope(ex::Expr, globals, locals, insertglobal::Bool=false)
-        if isexpr(ex, :for) || isexpr(ex, :while)
-            return Expr(ex.head, ex.args[1], _softscope(ex.args[2], copy(globals), copy(locals), true))
+        if isexpr(ex, :for)
+            return Expr(ex.head, localassignment(ex.args[1], copy(globals), copy(locals), insertglobal),
+                _softscope(ex.args[2], copy(globals), copy(locals), true))
+        elseif isexpr(ex, :while)
+            return Expr(ex.head, _softscope(ex.args[1], copy(globals), copy(locals), insertglobal),
+                _softscope(ex.args[2], copy(globals), copy(locals), true))
         elseif isexpr(ex, :try)
             try_clause = _softscope(ex.args[1], copy(globals), copy(locals), true)
             catch_clause = _softscope(ex.args[3], copy(globals), ex.args[2] isa Symbol ? union!(locals, ex.args[2:2]) : copy(locals), true)
@@ -108,7 +133,8 @@ else
             end
         elseif isexpr(ex, :let)
             letlocals = union(locals, localvars(ex.args[1]))
-            return Expr(ex.head, ex.args[1], _softscope(ex.args[2], copy(globals), letlocals, true))
+            return Expr(ex.head, localassignment(ex.args[1], copy(globals), copy(locals), true),
+                _softscope(ex.args[2], copy(globals), letlocals, true))
         elseif isexpr(ex, :block) || isexpr(ex, :if) || isexpr(ex, :toplevel)
             return Expr(ex.head, _softscope.(ex.args, Ref(globals), Ref(locals), insertglobal)...)
         elseif isexpr(ex, :global)
@@ -117,6 +143,10 @@ else
         elseif isexpr(ex, :local)
             union!(locals, localvars(ex.args)) # affects globals in surrounding scope!
             return ex
+        elseif isexpr(ex, :call)
+            return Expr(ex.head, ex.args[1], (_softscope.(ex.args[2:end], Ref(globals), Ref(locals), insertglobal))...)
+        elseif isexpr(ex, :kw)
+            return Expr(ex.head, ex.args[1], _softscope(ex.args[2], globals, locals, insertglobal))
         elseif insertglobal && ex.head in assignments && ex.args[1] in globals && !(ex.args[1] in locals)
             return Expr(:global, Expr(ex.head, ex.args[1], _softscope(ex.args[2], globals, locals, insertglobal)))
         elseif !insertglobal && isexpr(ex, :(=)) # only assignments in the global scope need to be considered
