@@ -91,7 +91,7 @@ else
             args = []
             for arg in ex.args
                 if isexpr(arg, :(=))
-                    push!(args, Expr(arg.head, arg.args[1], _softscope(arg.args[2], copy(globals), copy(locals), insertglobal)))
+                    push!(args, Expr(arg.head, arg.args[1], _softscope(arg.args[2], globals, locals, insertglobal)))
                     union!(locals, localvars(arg.args[1]))
                 else
                     error("Unknown syntax - please file an issue in the SoftGlobalScope.jl repository")
@@ -99,7 +99,7 @@ else
             end
             return Expr(ex.head, args...)
         elseif isexpr(ex, :(=))
-            return Expr(ex.head, ex.args[1], _softscope(ex.args[2], copy(globals), copy(locals), insertglobal))
+            return Expr(ex.head, ex.args[1], _softscope(ex.args[2], globals, locals, insertglobal))
         else
             error("Unknown syntax - please file an issue in the SoftGlobalScope.jl repository")
         end
@@ -141,6 +141,8 @@ else
             return ex
         elseif isexpr(ex, :call)
             return Expr(ex.head, ex.args[1], (_softscope.(ex.args[2:end], Ref(globals), Ref(locals), insertglobal))...)
+        elseif isexpr(ex, :kw)
+            return Expr(ex.head, ex.args[1], _softscope(ex.args[2], globals, locals, insertglobal))
         elseif insertglobal && ex.head in assignments && ex.args[1] in globals && !(ex.args[1] in locals)
             return Expr(:global, Expr(ex.head, ex.args[1], _softscope(ex.args[2], globals, locals, insertglobal)))
         elseif !insertglobal && isexpr(ex, :(=)) # only assignments in the global scope need to be considered
