@@ -61,6 +61,8 @@ end
         @test softscope(TestMod, nl"sqrt((for i = 1:10; a+=1; end; a))") == nl"sqrt((for i = 1:10; global a+=1; end; a))"
         @test softscope(TestMod, nl"let a = (local b = 2; a = 1), b = (b = 3); end") == nl"let a = (local b = 2; global a = 1), b = (b = 3); end"
         @test softscope(TestMod, nl"f(a=(for i = 1:10; a+=1; end; a))") == nl"f(a=(for i = 1:10; global a+=1; end; a))"
+        @test softscope(TestMod, nl"let a; a = 1; end") == nl"let a; a = 1; end"
+        @test softscope(TestMod, nl"let a, b; a = 1; end") == nl"let a, b; a = 1; end"
     end
 end
 
