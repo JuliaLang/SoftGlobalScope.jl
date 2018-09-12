@@ -86,13 +86,15 @@ else
 
     # Deal with assignments where the LHS is always local but the RHS might require global statements
     # For example, with previously defined a, let a = (a = 1) ; end -> let a = (global a = 1) ; end
-    function localassignment(ex::Expr, globals, locals, insertglobal)
+    function localassignment(ex, globals, locals, insertglobal)
         if isexpr(ex, :block)
             args = []
             for arg in ex.args
                 if isexpr(arg, :(=))
                     push!(args, Expr(arg.head, arg.args[1], _softscope(arg.args[2], globals, locals, insertglobal)))
                     union!(locals, localvars(arg.args[1]))
+                elseif arg isa Symbol
+                    push!(args, arg)
                 else
                     error("Unknown syntax - please file an issue in the SoftGlobalScope.jl repository")
                 end
@@ -100,6 +102,8 @@ else
             return Expr(ex.head, args...)
         elseif isexpr(ex, :(=))
             return Expr(ex.head, ex.args[1], _softscope(ex.args[2], globals, locals, insertglobal))
+        elseif ex isa Symbol
+            return ex
         else
             error("Unknown syntax - please file an issue in the SoftGlobalScope.jl repository")
         end
