@@ -133,7 +133,7 @@ else
     const toplevel_only = (:module, :primitive, :abstract, :struct)
     _add_linenum(ex, line, filesym) = Expr(:block, LineNumberNode(line, filesym), ex)
     add_linenum(ex, line, filesym) = _add_linenum(ex, line, filesym)
-    shift_linenum(ex::LineNumberNode, line, filesym) = ex.file === filesym ? LineNumberNode(ex.line+line-1, filesym) : ex
+    shift_linenum(ex::LineNumberNode, line, filesym) = ex.file === :none ? LineNumberNode(ex.line+line-1, filesym) : ex
     shift_linenum(ex::Expr, line, filesym) = Expr(ex.head, shift_linenum.(ex.args, line, filesym)...)
     shift_linenum(ex, line, filesym) = ex
     add_linenum(ex::LineNumberNode, line, filesym) = shift_linenum(ex, line, filesym)
@@ -150,28 +150,22 @@ else
     end
 
     function softscope_include_string(m::Module, code::AbstractString, filename::AbstractString="string")
-        # read through the code line by line, keeping count to preserve line-number information,
-        # using the undocumented Base.parse_input_line function.
-        io = IOBuffer(code)
+        # read through the code line by line, keeping count to preserve line-number information
+        pos = 1 # current position in the code
+        lastpos = lastindex(code)
         line = 1
         retval = nothing
         filesym = Symbol(filename) # LineNumberNode needs a Symbol
-        while !eof(io)
-            s = ""
-            e = nothing
-            linestart = line
-            while !eof(io)
-                s *= readline(io, keep=true)
-                line += 1
-                e = Base.parse_input_line(s, filename=filename)
-                isexpr(e, :incomplete) || break
-            end
+        while pos ≤ lastpos
+            startpos = pos
+            e, pos = Meta.parse(code, startpos, greedy=true, raise=false)
             if isexpr(e, :incomplete) || isexpr(e, :error)
-                throw(LoadError(filename, linestart,
+                throw(LoadError(filename, line,
                                 ErrorException("syntax: " * e.args[1])))
             end
-            e = add_linenum(e, linestart, filesym)
-            retval = Core.eval(m, softscope(m, e))
+            e = softscope(m, add_linenum(e, line, filesym))
+            line += count(==('\n'), SubString(code, startpos, prevind(code, pos)))
+            retval = Core.eval(m, e)
         end
         return retval
     end

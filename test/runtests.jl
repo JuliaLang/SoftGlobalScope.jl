@@ -75,6 +75,9 @@ end
     catch e
         @test e == LoadError("bar", 3, ErrorException("syntax: \"++\" is not a unary operator"))
     end
+    softscope_include_string(TestMod, """"blah blah"\ntestdoc = 1""")
+    @test TestMod.testdoc == 1
+    @test Docs.docstr(Docs.Binding(TestMod, :testdoc)).text[1] == "blah blah"
 end
 
 @testset "softscope_macro" begin
