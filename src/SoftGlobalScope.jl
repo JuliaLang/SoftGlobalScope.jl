@@ -201,9 +201,11 @@ else
                 throw(LoadError(filename, line,
                                 ErrorException("syntax: " * e.args[1])))
             end
-            e = softscope(m, add_linenum(e, line, filesym))
+            if e !== nothing # ignore blank and comment lines (#12)
+                e = softscope(m, add_linenum(e, line, filesym))
+                retval = Core.eval(m, e)
+            end
             line += count(==('\n'), SubString(code, startpos, prevind(code, pos)))
-            retval = Core.eval(m, e)
         end
         return retval
     end

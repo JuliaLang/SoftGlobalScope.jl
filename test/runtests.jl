@@ -93,6 +93,7 @@ end
     softscope_include_string(TestMod, """"blah blah"\ntestdoc = 1""")
     @test TestMod.testdoc == 1
     @test Docs.docstr(Docs.Binding(TestMod, :testdoc)).text[1] == "blah blah"
+    @test softscope_include_string(Main, "1\n   ") === softscope_include_string(Main, "1\n#b") === 1
 end
 
 @testset "softscope_macro" begin
