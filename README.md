@@ -35,7 +35,7 @@ ERROR: UndefVarError: s not defined
 ```
 
 To make it work in 1.0, you need a `global` declaration:
-```
+```jl
 julia> for i = 1:10
            global s = s + i
        end
@@ -45,7 +45,7 @@ julia> s      # should be 1 + 2 + ⋯ + 10 = 55
 ```
 
 This only applies to *global* variables; similar code *inside a function* (or whenever `s` is a *local* variable) works fine without any added keyword:
-```
+```jl
 julia> function f(n)
            s = 0
            for i = 1:n
