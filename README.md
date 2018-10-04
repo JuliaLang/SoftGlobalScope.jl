@@ -61,7 +61,7 @@ julia> f(10)
 
 There were [various reasons](https://github.com/JuliaLang/julia/pull/19324) for this scoping rule, e.g. to facilitate [static analysis](https://en.wikipedia.org/wiki/Static_program_analysis) by the compiler, and it isn't too onerous in "serious" Julia code where [little code executes in global scope](https://docs.julialang.org/en/stable/manual/performance-tips/#Avoid-global-variables-1).
 
-However, for *interactive* use, especially for new users, the necessity of the `global` keyword, and the difference between code in local and global scopes, [can be confusing](https://github.com/JuliaLang/julia/issues/28789#issuecomment-414930024).   The SoftGlobalScope package exists to make it easier for *interactive shells* to automatically insert the `global` keyword in common cases, what we term "soft" global scope.
+However, for *interactive* use, especially for new users, the necessity of the `global` keyword, and the difference between code in local and global scopes, [can be confusing](https://github.com/JuliaLang/julia/issues/28789).   The SoftGlobalScope package exists to make it easier for *interactive shells* to automatically insert the `global` keyword in common cases, what we term "soft" global scope.
 
 ## Usage
 
