@@ -63,6 +63,9 @@ end
         @test softscope(TestMod, nl"f(a=(for i = 1:10; a+=1; end; a))") == nl"f(a=(for i = 1:10; global a+=1; end; a))"
         @test softscope(TestMod, nl"let a; a = 1; end") == nl"let a; a = 1; end"
         @test softscope(TestMod, nl"let a, b; a = 1; end") == nl"let a, b; a = 1; end"
+        @test softscope(TestMod, nl"for i=r; true && (a += 1); end") == nl"for i=r; true && (global a += 1); end"
+        @test softscope(TestMod, nl"for i=r; true || (a += 1); end") == nl"for i=r; true || (global a += 1); end"
+        @test softscope(TestMod, nl"for i=r; 0 < (a += 1) < 10; end") == nl"for i=r; 0 < (global a += 1) < 10; end"
     end
 end
 
