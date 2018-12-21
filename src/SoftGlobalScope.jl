@@ -152,8 +152,15 @@ else
             return Expr(ex.head, (_softscope.(ex.args, Ref(globals), Ref(locals), insertglobal))...)
         elseif isexpr(ex, :kw)
             return Expr(ex.head, ex.args[1], _softscope(ex.args[2], globals, locals, insertglobal))
-        elseif insertglobal && ex.head in assignments && ex.args[1] in globals && !(ex.args[1] in locals)
-            return Expr(:global, Expr(ex.head, ex.args[1], _softscope(ex.args[2], globals, locals, insertglobal)))
+        elseif insertglobal && ex.head in assignments 
+            if ex.args[1] in globals && !(ex.args[1] in locals)
+                # Simple assignment
+                return Expr(:global, Expr(ex.head, ex.args[1], _softscope(ex.args[2], globals, locals, insertglobal)))
+            elseif isexpr(ex.args[1], :tuple)
+                # Assignment to a tuple
+                vars = (var for var in localvars(ex.args[1].args) if (var in globals) && !(var in locals))
+                return Expr(:block, Expr(:global, Expr(:tuple, vars...)), Expr(ex.head, ex.args[1], _softscope(ex.args[2], globals, locals, insertglobal)))
+            end
         elseif !insertglobal && isexpr(ex, :(=)) # only assignments in the global scope need to be considered
             union!(globals, localvars(ex))
             return ex
