@@ -156,7 +156,7 @@ else
             if ex.args[1] in globals && !(ex.args[1] in locals) # Simple assignment to global
                 return Expr(:global, Expr(ex.head, ex.args[1], _softscope(ex.args[2], globals, locals, insertglobal)))
             end
-            softex = Expr(ex.head, _softscope.(ex.args, globals, locals, insertglobal)...)
+            softex = Expr(ex.head, _softscope.(ex.args, Ref(globals), Ref(locals), insertglobal)...)
             if isexpr(ex.args[1], :tuple) # Assignment to a tuple
                 vars = [var for var in localvars(ex.args[1].args) if (var in globals) && !(var in locals)]
                 return isempty(vars) ? softex : Expr(:block, Expr(:global, vars...), softex)
