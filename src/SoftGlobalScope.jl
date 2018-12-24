@@ -152,8 +152,12 @@ else
             return Expr(ex.head, (_softscope.(ex.args, Ref(globals), Ref(locals), insertglobal))...)
         elseif isexpr(ex, :kw)
             return Expr(ex.head, ex.args[1], _softscope(ex.args[2], globals, locals, insertglobal))
+        elseif isexpr(ex, :ref)
+            return Expr(ex.head, ex.args[1], _softscope.(ex.args[2:end], Ref(globals), Ref(locals), insertglobal))
         elseif insertglobal && ex.head in assignments 
-            if ex.args[1] in globals && !(ex.args[1] in locals) # Simple assignment to global
+            if isexpr(ex.args[1], :call)
+                return ex
+            elseif ex.args[1] in globals && !(ex.args[1] in locals) # Simple assignment to global
                 return Expr(:global, Expr(ex.head, ex.args[1], _softscope(ex.args[2], globals, locals, insertglobal)))
             end
             softex = Expr(ex.head, _softscope.(ex.args, Ref(globals), Ref(locals), insertglobal)...)
