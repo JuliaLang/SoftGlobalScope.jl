@@ -151,7 +151,7 @@ else
         elseif ex.head in calls
             return Expr(ex.head, _softscope.(ex.args, Ref(globals), Ref(locals), insertglobal)...)
         elseif isexpr(ex, :kw)
-            return Expr(ex.head, ex.args[1], _softscope(ex.args[2], globals, locals, insertglobal)...)
+            return Expr(ex.head, ex.args[1], _softscope(ex.args[2], globals, locals, insertglobal))
         elseif insertglobal && ex.head in assignments 
             if isexpr(ex.args[1], :call)
                 return ex
