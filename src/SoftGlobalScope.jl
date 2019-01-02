@@ -69,7 +69,7 @@ else
     using Base.Meta: isexpr
 
     const assignments = Set((:(=), :(+=), :(-=), :(*=), :(/=), :(//=), :(\=), :(^=), :(÷=), :(%=), :(<<=), :(>>=), :(>>>=), :(|=), :(&=), :(⊻=), :($=)))
-    const calls = Set((:call, :comparison, :(&&), :(||)))
+    const calls = Set((:call, :comparison, :(&&), :(||), :ref))
 
     # extract the local variable names (e.g. `[:x]`) from assignments (e.g. `x=1`) etc.
     function localvars(ex::Expr)
@@ -149,11 +149,9 @@ else
             union!(locals, localvars(ex.args)) # affects globals in surrounding scope!
             return ex
         elseif ex.head in calls
-            return Expr(ex.head, (_softscope.(ex.args, Ref(globals), Ref(locals), insertglobal))...)
+            return Expr(ex.head, _softscope.(ex.args, Ref(globals), Ref(locals), insertglobal)...)
         elseif isexpr(ex, :kw)
-            return Expr(ex.head, ex.args[1], _softscope(ex.args[2], globals, locals, insertglobal))
-        elseif isexpr(ex, :ref)
-            return Expr(ex.head, ex.args[1], _softscope.(ex.args[2:end], Ref(globals), Ref(locals), insertglobal))
+            return Expr(ex.head, ex.args[1], _softscope(ex.args[2], globals, locals, insertglobal)...)
         elseif insertglobal && ex.head in assignments 
             if isexpr(ex.args[1], :call)
                 return ex
