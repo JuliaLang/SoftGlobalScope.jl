@@ -120,7 +120,7 @@ else
     recursively set to `true` for local scopes introduced by `for` etcetera.)
     NOTE: `_softscope`` may mutate the `globals` argument (if there are `local` declarations.)
     """
-    function _softscope(ex::Expr, globals, locals, insertglobal::Bool=false)
+    function _softscope(ex::Expr, globals, locals, insertglobal::Bool=false, noassignment::Bool=false)
         if isexpr(ex, :for)
             return Expr(ex.head, localassignment(ex.args[1], copy(globals), copy(locals), insertglobal),
                 _softscope(ex.args[2], copy(globals), copy(locals), true))
@@ -149,8 +149,8 @@ else
             union!(locals, localvars(ex.args)) # affects globals in surrounding scope!
             return ex
         elseif ex.head in calls
-            return Expr(ex.head, _softscope.(ex.args, Ref(globals), Ref(locals), insertglobal)...)
-        elseif isexpr(ex, :kw)
+            return Expr(ex.head, _softscope.(ex.args, Ref(globals), Ref(locals), insertglobal, ex.head === :tuple)...)
+        elseif isexpr(ex, :kw) || (noassignment && ex.head in assignments)
             return Expr(ex.head, ex.args[1], _softscope(ex.args[2], globals, locals, insertglobal))
         elseif insertglobal && ex.head in assignments
             if isexpr(ex.args[1], :call)
@@ -172,7 +172,7 @@ else
             return ex
         end
     end
-    _softscope(ex, globals, locals, insertglobal::Bool=false) = ex
+    _softscope(ex, globals, locals, insertglobal::Bool=false, noassignment::Bool=false) = ex
 
     softscope(m::Module, ast) = _softscope(ast, Set(@static VERSION < v"0.7.0-DEV.3526" ? names(m, true) : names(m, all=true)), Set{Symbol}())
 
