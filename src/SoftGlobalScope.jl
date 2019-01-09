@@ -69,7 +69,7 @@ else
     using Base.Meta: isexpr
 
     const assignments = Set((:(=), :(+=), :(-=), :(*=), :(/=), :(//=), :(\=), :(^=), :(÷=), :(%=), :(<<=), :(>>=), :(>>>=), :(|=), :(&=), :(⊻=), :($=)))
-    const calls = Set((:call, :comparison, :(&&), :(||), :ref))
+    const calls = Set((:call, :comparison, :(&&), :(||), :ref, :tuple))
 
     # extract the local variable names (e.g. `[:x]`) from assignments (e.g. `x=1`) etc.
     function localvars(ex::Expr)
@@ -152,7 +152,7 @@ else
             return Expr(ex.head, _softscope.(ex.args, Ref(globals), Ref(locals), insertglobal)...)
         elseif isexpr(ex, :kw)
             return Expr(ex.head, ex.args[1], _softscope(ex.args[2], globals, locals, insertglobal))
-        elseif insertglobal && ex.head in assignments 
+        elseif insertglobal && ex.head in assignments
             if isexpr(ex.args[1], :call)
                 return ex
             elseif ex.args[1] in globals && !(ex.args[1] in locals) # Simple assignment to global
