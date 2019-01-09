@@ -69,7 +69,7 @@ else
     using Base.Meta: isexpr
 
     const assignments = Set((:(=), :(+=), :(-=), :(*=), :(/=), :(//=), :(\=), :(^=), :(÷=), :(%=), :(<<=), :(>>=), :(>>>=), :(|=), :(&=), :(⊻=), :($=)))
-    const calls = Set((:call, :comparison, :(&&), :(||)))
+    const calls = Set((:call, :comparison, :(&&), :(||), :ref, :tuple))
 
     # extract the local variable names (e.g. `[:x]`) from assignments (e.g. `x=1`) etc.
     function localvars(ex::Expr)
@@ -120,7 +120,7 @@ else
     recursively set to `true` for local scopes introduced by `for` etcetera.)
     NOTE: `_softscope`` may mutate the `globals` argument (if there are `local` declarations.)
     """
-    function _softscope(ex::Expr, globals, locals, insertglobal::Bool=false)
+    function _softscope(ex::Expr, globals, locals, insertglobal::Bool=false, noassignment::Bool=false)
         if isexpr(ex, :for)
             return Expr(ex.head, localassignment(ex.args[1], copy(globals), copy(locals), insertglobal),
                 _softscope(ex.args[2], copy(globals), copy(locals), true))
@@ -149,11 +149,22 @@ else
             union!(locals, localvars(ex.args)) # affects globals in surrounding scope!
             return ex
         elseif ex.head in calls
-            return Expr(ex.head, (_softscope.(ex.args, Ref(globals), Ref(locals), insertglobal))...)
-        elseif isexpr(ex, :kw)
+            return Expr(ex.head, _softscope.(ex.args, Ref(globals), Ref(locals), insertglobal, ex.head === :tuple)...)
+        elseif isexpr(ex, :kw) || (noassignment && ex.head in assignments)
             return Expr(ex.head, ex.args[1], _softscope(ex.args[2], globals, locals, insertglobal))
-        elseif insertglobal && ex.head in assignments && ex.args[1] in globals && !(ex.args[1] in locals)
-            return Expr(:global, Expr(ex.head, ex.args[1], _softscope(ex.args[2], globals, locals, insertglobal)))
+        elseif insertglobal && ex.head in assignments
+            if isexpr(ex.args[1], :call)
+                return ex
+            elseif ex.args[1] in globals && !(ex.args[1] in locals) # Simple assignment to global
+                return Expr(:global, Expr(ex.head, ex.args[1], _softscope(ex.args[2], globals, locals, insertglobal)))
+            end
+            softex = Expr(ex.head, _softscope.(ex.args, Ref(globals), Ref(locals), insertglobal)...)
+            if isexpr(ex.args[1], :tuple) # Assignment to a tuple
+                vars = [var for var in localvars(ex.args[1].args) if (var in globals) && !(var in locals)]
+                return isempty(vars) ? softex : Expr(:block, Expr(:global, vars...), softex)
+            else
+                return softex
+            end
         elseif !insertglobal && isexpr(ex, :(=)) # only assignments in the global scope need to be considered
             union!(globals, localvars(ex))
             return ex
@@ -161,7 +172,7 @@ else
             return ex
         end
     end
-    _softscope(ex, globals, locals, insertglobal::Bool=false) = ex
+    _softscope(ex, globals, locals, insertglobal::Bool=false, noassignment::Bool=false) = ex
 
     softscope(m::Module, ast) = _softscope(ast, Set(@static VERSION < v"0.7.0-DEV.3526" ? names(m, true) : names(m, all=true)), Set{Symbol}())
 
