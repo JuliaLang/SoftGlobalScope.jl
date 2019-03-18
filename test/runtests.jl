@@ -72,6 +72,7 @@ end
         @test softscope(TestMod, nl"j=0; for i = 1:10; (a[j+=1],x) = (i, i+1); end") == nl"j=0; for i = 1:10; (a[global j+=1],x) = (i, i+1); end"
         @test softscope(TestMod, nl"myfunc(a) = (b = 0; for i = 1:10; b += i; a += b; end; a)") == nl"myfunc(a) = (b = 0; for i = 1:10; b += i; a += b; end; a)"
         @test softscope(TestMod, nl"let; x = (a=1, aa=2); end") == nl"let; x = (a=1, aa=2); end"
+        @test softscope(TestMod, nl"for i = 1:10; if true; a = 3; elseif false; a = 4; else; a = 7; end; end") == nl"for i = 1:10; if true; global a = 3; elseif false; global a = 4; else; global a = 7; end; end"
     end
 end
 

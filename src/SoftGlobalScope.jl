@@ -140,7 +140,7 @@ else
             letlocals = union(locals, localvars(ex.args[1]))
             return Expr(ex.head, localassignment(ex.args[1], copy(globals), copy(locals), true),
                 _softscope(ex.args[2], copy(globals), letlocals, true))
-        elseif isexpr(ex, :block) || isexpr(ex, :if) || isexpr(ex, :toplevel)
+        elseif isexpr(ex, :block) || isexpr(ex, :if) || isexpr(ex, :elseif) || isexpr(ex, :toplevel)
             return Expr(ex.head, _softscope.(ex.args, Ref(globals), Ref(locals), insertglobal)...)
         elseif isexpr(ex, :global)
             union!(globals, localvars(ex.args))
