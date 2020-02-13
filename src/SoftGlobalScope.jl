@@ -1,5 +1,3 @@
-VERSION < v"0.7.0-beta2.199" && __precompile__()
-
 """
 SoftGlobalScope is a package that simplifies the [variable scoping rules](https://docs.julialang.org/en/stable/manual/variables-and-scoping/)
 for code in *global* scope.   It is intended for interactive shells (the REPL, [IJulia](https://github.com/JuliaLang/IJulia.jl),
@@ -60,11 +58,12 @@ On Julia 0.6, `softscope` is the identity and `softscope_include_string` is equi
 """
 module SoftGlobalScope
 export softscope, softscope_include_string, @softscope
+import REPL
 
-if VERSION < v"0.7.0-DEV.2308" # before julia#19324 we don't need to change the ast
-    softscope(m::Module, ast) = ast
+if VERSION >= v"1.5.0-DEV.263" # after julia#34595 we can use the built-in REPL.softscope function
+    softscope(m::Module, ast) = REPL.softscope(ast)
     softscope_include_string(m::Module, code::AbstractString, filename::AbstractString="string") =
-        @static isdefined(Base, Symbol("@__MODULE__")) ? include_string(m, code, filename) : Core.eval(m, :(include_string($code, $filename)))
+        include_string(REPL.softscope, m, code, filename)
 else
     using Base.Meta: isexpr
 
@@ -231,14 +230,8 @@ scoping rules for the global variables defined in `m`, returning the new express
 """
 softscope
 
-if VERSION < v"0.7.0-DEV.481" # the version that __module__ was introduced
-    macro softscope(ast)
-        esc(softscope(current_module(), ast))
-    end
-else
-    macro softscope(ast)
-        esc(softscope(__module__, ast))
-    end
+macro softscope(ast)
+    esc(softscope(__module__, ast))
 end
 
 """

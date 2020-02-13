@@ -23,7 +23,7 @@ end
 @testset "softscope" begin
     if VERSION < v"0.7.0-DEV.2308"
         @test softscope(TestMod, nl"for i=r; a += 1; end") == nl"for i=r; a += 1; end"
-    else
+    elseif VERSION < v"1.5.0-DEV.263"
         @test softscope(TestMod, nl"for i=r; a += 1; end") == nl"for i=r; global a += 1; end"
         @test softscope(TestMod, nl"while a < 3; a += 1; end") == nl"while a < 3; global a += 1; end"
         @test softscope(TestMod, nl"begin; a += 1; end") == nl"begin; a += 1; end"
