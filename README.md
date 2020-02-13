@@ -6,6 +6,8 @@ SoftGlobalScope is a package for the [Julia language](http://julialang.org/) tha
 
 In particular, SoftGlobalScope provides a function `softscope` that can transform Julia code from using the default "hard" scoping rules to simpler "soft" scoping rules in global scope only.
 
+In Julia 1.5, "soft scoping" [became the default](https://github.com/JuliaLang/julia/pull/33864) for the built-in Julia REPL, and the SoftGlobalScope module simply calls through to the standard-library `REPL.softscope` function.   The advantage of using the SoftGlobalScope library is that it also works with previous Julia versions.
+
 ## Hard and soft global scopes
 
 [Starting in Julia 0.7](https://github.com/JuliaLang/julia/pull/19324), when you *assign to* global variables in the context of an inner scope (a `for` loop or a `let` statement) you need to explicitly declare the variable
@@ -61,7 +63,7 @@ julia> f(10)
 
 There were [various reasons](https://github.com/JuliaLang/julia/pull/19324) for this scoping rule, e.g. to facilitate [static analysis](https://en.wikipedia.org/wiki/Static_program_analysis) by the compiler, and it isn't too onerous in "serious" Julia code where [little code executes in global scope](https://docs.julialang.org/en/stable/manual/performance-tips/#Avoid-global-variables-1).
 
-However, for *interactive* use, especially for new users, the necessity of the `global` keyword, and the difference between code in local and global scopes, [can be confusing](https://github.com/JuliaLang/julia/issues/28789).   The SoftGlobalScope package exists to make it easier for *interactive shells* to automatically insert the `global` keyword in common cases, what we term "soft" global scope.
+However, for *interactive* use, especially for new users, the necessity of the `global` keyword, and the difference between code in local and global scopes, [can be confusing](https://github.com/JuliaLang/julia/issues/28789) and was [ultimately reverted](https://github.com/JuliaLang/julia/pull/33864).   The SoftGlobalScope package exists to make it easier for *interactive shells* to automatically insert the `global` keyword in common cases, what we term "soft" global scope.
 
 ## Usage
 
@@ -104,7 +106,7 @@ julia> softscope_include_string(Main, """
 (This function works like `include_string`, returning the value of the last evaluated expression.)
 
 In Julia 0.6, no code transformations are required, so `softscope` returns the original expression
-and `softscope_include_string` is equivalent to `include_string`.
+and `softscope_include_string` is equivalent to `include_string`.  In Julia 1.5, `softscope_include_string(m, x)` is equivalent to `include_string(REPL.softscope, m, x)` using the `softscope` transformation function provided by Julia's `REPL` standard library.
 
 ## Contact
 
