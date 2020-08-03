@@ -1,6 +1,6 @@
 name = "SoftGlobalScope"
 uuid = "b85f4697-e234-5449-a836-ec8e2f98b302"
-version = "1.2.0"
+version = "1.1.0"
 
 [deps]
 REPL = "3fa0cd96-eef1-5676-8a61-b3b8758bbffb"
