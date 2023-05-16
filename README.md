@@ -1,6 +1,6 @@
 # SoftGlobalScope
 
-[![CI](https://github.com/stevengj/SoftGlobalScope.jl/workflows/CI/badge.svg)](https://github.com/stevengj/SoftGlobalScope.jl/actions?query=workflow%3ACI)
+[![CI](https://github.com/JuliaLang/SoftGlobalScope.jl/workflows/CI/badge.svg)](https://github.com/JuliaLang/SoftGlobalScope.jl/actions?query=workflow%3ACI)
 
 SoftGlobalScope is a package for the [Julia language](http://julialang.org/) that simplifies the [variable scoping rules](https://docs.julialang.org/en/stable/manual/variables-and-scoping/) for code in *global* scope.   It is intended for interactive shells (the REPL, [IJulia](https://github.com/JuliaLang/IJulia.jl), etcetera) to make it easier to work interactively with Julia, especially for beginners.
 
